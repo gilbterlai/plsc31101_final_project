@@ -1,0 +1,121 @@
+---
+title: "Data Manipulation"
+author: "Gilbert"
+date: "12/2/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(stringr) 
+library(purrr) 
+library(lubridate)
+library(readxl)
+```
+
+First, we read orginal data, and remove repeated items and filter out items before 1991.12.26 when Soviet Union collapsed, because "China Threat" discourse emerged mainly since 1990s.
+```{r}
+#read the data we scraped from People's Daily website
+df <- read_csv("../Data/webscraping_df.csv")
+# clean it a little bit
+df_tidied <- df %>% 
+  #filter out items before 1991.12.26
+  filter(date > ymd("1991-12-26")) %>% 
+  #filter out repeated items
+  filter(!duplicated(titles))
+#create a China_threat dataframe
+China_threat <- df_tidied %>% 
+  #extract year from date
+  mutate(year = str_sub(date, 1, 4)) %>% 
+  #count the number of China Threat articles within each year
+  group_by(year) %>% 
+  count(name = "threat_total")
+```
+Get China's Polity V data to measure China's authoritarianism. Since from People's Daily, we know that "China Threat" discurse appeared after 1992, and Polity V data only covers until 2018, we only select years between 1992 and 2018.
+```{r}
+#read data from Polity V
+polity <- read_excel("../Data/p5v2018.xls")
+#create a China_polity dataframe
+China_polity <- polity %>% 
+  #select columns we need
+  select(country, polity, year) %>% 
+  filter(country == "China", #filter out countries beside China
+         year >= 1992 & year <= 2018) %>% #filter out years before 1992
+  #since we only know that this data is China's
+  select(!country) %>% 
+  #since the first China_threat dataframe's year column is character
+  mutate(year = as.character(year)) 
+```
+Get China's military expenditure and GDP data to measure China's military and economic capacity.
+```{r}
+#read military_expenditure data
+military <- read_excel("../Data/military_raw.xls")
+#read GDP data
+economy <- read_excel("../Data/GDP_raw.xls")
+#create a China_military dataframe
+China_military <- military %>% 
+  #filter out countries other than China
+  filter(`Country Name` == "China") %>% 
+  #remove uesless columns
+  select(!c(`Country Code`, `Indicator Name`, `Indicator Code`, `2020`)) %>% 
+  #filter out data before 1992 and after 2018
+  select(1, 34:60) %>% 
+  #tidy from wide to long
+  gather(key = "year", value = "military", 2:28) %>% 
+  #remove country name column becasue we know which country it is
+  select(!"Country Name")
+
+#do the same thing to economy data
+China_economy <- economy %>% 
+  filter(`Country Name` == "China") %>% 
+  select(!c(`Country Code`, `Indicator Name`, `Indicator Code`, `2020`)) %>% 
+  select(1, 34:60) %>% 
+  gather(key = "year", value = "GDP", 2:28) %>% 
+  select(!"Country Name")
+```
+Finally, categarize "China Threat" further into three types: China as a military threat, as an economic threat, and as a political threat. 
+```{r}
+categarized_threat <- df_tidied %>% 
+  #once one type of threat is identified, I give its dummy variable: 1
+  mutate(military=if_else(str_detect(text, "军"), 1, 0)) %>% #military threat
+  mutate(economy=if_else(str_detect(text, "经济")|str_detect(text, "发展"),
+                         1, 0)) %>% #economic threat
+  mutate(polity=if_else(str_detect(text, "政治")|str_detect(text, "社会主义")|
+                         str_detect(text, "意识形态")|str_detect(text, "制度"),
+                        1, 0)) %>% #political threat
+  mutate(year = str_sub(date, 1, 4)) %>% #transform date to year
+  #sum different types of threat
+  group_by(year) %>% 
+  summarize(military_threat = sum(military),
+            economy_threat = sum(economy),
+            political_threat = sum(polity))
+```
+
+Merge data
+```{r}
+#merge four dataframes together
+df_final <- China_threat %>% 
+  left_join(China_economy, by = "year") %>% 
+  left_join(China_military, by = "year") %>% 
+  left_join(China_polity, by = "year") %>% 
+  left_join(categarized_threat, by = "year") %>% 
+  #remove 2019, 2020 data, which contain NAs
+  filter(!is.na(GDP))
+```
+Write a csv file
+```{r}
+write_csv(df_final, "../Data/df_final.csv")
+```
+To do the job of plotting different types of threat, I also need a long dataframe exclusively for this purpose.
+```{r}
+#tidy the dataframe to the long format
+df_threat <- df_final %>% 
+  #select variables we need
+  select(year, threat_total, military_threat, economy_threat, political_threat) %>% 
+  #tidyr!
+  gather(key = "threat_type", value = "threat_number", 2:5)
+#write a csv
+write_csv(df_threat, "../Data/df_threat.csv")
+```
+

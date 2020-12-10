@@ -1,0 +1,63 @@
+---
+title: "People's Daily Webscraping"
+author: "Gilbert"
+date: "12/2/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+library(stringr) 
+library(purrr) 
+library(lubridate)
+```
+
+# China Threat (“中国威胁论”) in Pepole's Daily (人民日报)
+By entering "China Threat" (“中国威胁论”) in Pepole's Daily (人民日报), it returns 753 items. With one page displaing 50 items, there are 16 pages.
+First, we create a function to scrape information in one search pase
+```{r}
+scrape_info <- function(link){
+  #read the searche page
+  search_page <- read_html(link)
+  #get titles
+  titles <- html_nodes(search_page, "a.open_detail_link") %>% 
+    html_text()
+  #get dates
+  date <- html_nodes(search_page, "div.listinfo") %>% 
+    html_text() %>% 
+    #the orginal formate is really weird. We extract the real date
+    str_extract_all("\\d+年\\d+月\\d+日") %>% 
+    #transform its format by using lubridate
+    ymd()
+  #get excerpt
+  text <- html_nodes(search_page, "#content .clearfix p") %>% 
+    html_text() %>% 
+    #the original text contains weird things; remove them
+    str_remove_all("\n\t+")
+  #create a list   
+  all_info <- list(titles=titles,
+                    date=date,
+                    text=text)
+  #return the result
+  return(all_info)
+  #be careful! This is an official website. Don't get into trouble
+  Sys.sleep(1)
+}
+```
+Then, we create 16 links
+```{r}
+all_links <- str_c("http://data.people.com.cn/rmrb/s?qs=%7B%22cds%22%3A%5B%7B%22cdr%22%3A%22AND%22%2C%22cds%22%3A%5B%7B%22fld%22%3A%22title%22%2C%22cdr%22%3A%22OR%22%2C%22hlt%22%3A%22true%22%2C%22vlr%22%3A%22OR%22%2C%22val%22%3A%22%E4%B8%AD%E5%9B%BD%E5%A8%81%E8%83%81%E8%AE%BA%22%7D%2C%7B%22fld%22%3A%22subTitle%22%2C%22cdr%22%3A%22OR%22%2C%22hlt%22%3A%22true%22%2C%22vlr%22%3A%22OR%22%2C%22val%22%3A%22%E4%B8%AD%E5%9B%BD%E5%A8%81%E8%83%81%E8%AE%BA%22%7D%2C%7B%22fld%22%3A%22introTitle%22%2C%22cdr%22%3A%22OR%22%2C%22hlt%22%3A%22true%22%2C%22vlr%22%3A%22OR%22%2C%22val%22%3A%22%E4%B8%AD%E5%9B%BD%E5%A8%81%E8%83%81%E8%AE%BA%22%7D%2C%7B%22fld%22%3A%22contentText%22%2C%22cdr%22%3A%22OR%22%2C%22hlt%22%3A%22true%22%2C%22vlr%22%3A%22OR%22%2C%22val%22%3A%22%E4%B8%AD%E5%9B%BD%E5%A8%81%E8%83%81%E8%AE%BA%22%7D%5D%7D%5D%2C%22obs%22%3A%5B%7B%22fld%22%3A%22dataTime%22%2C%22drt%22%3A%22DESC%22%7D%5D%7D&tr=A&ss=1&pageNo="
+                   , 1:16, "&pageSize=50")
+```
+Then, we use map.dfr() to put links into our function to create a dataframe containinig all information. Then, we manipulate it a little bit by removing repeated items and filtering out items before 1991.12.26 when Soviet Union collapsed. Finally, we write our data to csv.
+```{r}
+#mapping!
+df <- map_dfr(all_links, scrape_info) 
+#see the structure, which should has 3 columns and 753 rows
+str(df)
+#write our data to csv
+write_csv(df, "../Data/webscraping_df.csv")
+```
+Note: I cannot open each specific link and scrape content in that link, because it requires an official account. Thus, I just scrape excerpt from the searching page.
