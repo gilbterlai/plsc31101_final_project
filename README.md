@@ -12,14 +12,14 @@ R, 4.0.2
 
 ## Files
 
-### /
+#### /
 
 1. Narrative.Rmd: Provides a 3-5 page narrative of the project, main challenges, solutions, and results.
 2. Narrative.pdf: A knitted pdf of Narrative.Rmd. 
 3. Presentation.pptx: Slides for brief presentation of code and results
 4. preamble.tex: I include this in the Narrative.Rmd to fix the position of figures.
 
-### Code/
+#### Code/
 
 Note that I used Rmd. rather than R. because I find it more convenient to include text.
 
@@ -27,7 +27,7 @@ Note that I used Rmd. rather than R. because I find it more convenient to includ
 2. Data_Manipulation.Rmd: processes data about "China Threat," China's GDP, military expenditure, and Polity V score.
 3. Data_Analysis.Rmd: Using the data we get, do a plot and regression.
 
-### Data/
+#### Data/
 
 1. webscraping_df.csv: data scraped from People's Daily saved here.
 2. military_raw.xls: military expenditure data from World Bank Database.
@@ -36,7 +36,7 @@ Note that I used Rmd. rather than R. because I find it more convenient to includ
 5. df_final.csv: data resulted from Data_Manipulation.Rmd, including number of arctiles about China Threat as a whole, China as an economic threat, miliary trhreat, and political threat, also including China's GDP, military expenditure and Polity V score.
 6. df_threat.csv: a long format of data about China Threat as a whole, China as an economic threat, miliary trhreat, and political threat.
 
-### Results/
+#### Results/
 
 1. China_Threat_Discourse_Over_Time.png: "China Threat" discourse over time.
 2. China_Threat_With_Changing_Capabilities.png: "China Threat" and China's changing GDP, military expenditure and Polity V.
